@@ -9,15 +9,16 @@
 #include "goo/GooString.h"
 
 #include "poppler/CairoOutputDev.h"
-#include "goo/ImgWriter.h"
-#include "goo/JpegWriter.h"
-#include "goo/PNGWriter.h"
+#include "CairoOutputDevNoText.h"
+// #include "goo/ImgWriter.h"
 
 #include <cairo/cairo.h>
 #include <cairo/cairo-svg.h>
 
 #include <string>
 #include <vector>
+#include <math.h>
+#include <iostream>
 
 static const int default_resolution = 72;
 
@@ -37,10 +38,9 @@ ObjectDumper::ObjectDumper(const char *fileName, const char *ownerPW, const char
     bool rawOrder = false;
     bool htmlMeta = true;
     m_textOut = new TextOutputDev(nullptr, physLayout, fixedPitch, rawOrder, htmlMeta);
-    m_cairoOut = new CairoOutputDev();
+    m_cairoOut = new CairoOutputDevNoText();
 
     m_uMap = globalParams->getTextEncoding();
-    m_surface = nullptr
 }
 
 ObjectDumper::~ObjectDumper()
@@ -77,6 +77,7 @@ CPageInfo *ObjectDumper::parse(int page)
     page_info->width = m_doc->getPageMediaWidth(page);
     page_info->height = m_doc->getPageMediaHeight(page);
     this->dumpText(page, default_resolution * 2, *page_info);
+    page_info->graph = this->dumpGraph(page);
     return page_info;
 }
 
@@ -218,282 +219,15 @@ static cairo_status_t writeStream(void *closure, const unsigned char *data, unsi
         return CAIRO_STATUS_WRITE_ERROR;
 }
 
-void ObjectDumper::beginDocument(ImageFormat format, double w, double h)
-{
-    if (is_printing(format))
-    {
-        if (format == fmtSvg)
-        {
-            m_surface = cairo_svg_surface_create_for_stream(writeStream, output_file, w, h);
-            cairo_svg_surface_restrict_to_version(m_surface, CAIRO_SVG_VERSION_1_2);
-        }
-    }
-}
-
-void ObjectDumper::beginPage(ImageFormat format, double resolution, double *w, double *h)
-{
-    if (is_printing(format))
-    {
-
-        cairo_surface_set_fallback_resolution(m_surface, resolution, resolution);
-    }
-    else
-    {
-        m_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ceil(*w), ceil(*h));
-    }
-}
-
-void ObjectDumper::renderPage(ImageFormat format, double resolution, PDFDoc *doc, CairoOutputDev *cairoOut, int pg,
-                              double page_w, double page_h,
-                              double output_w, double output_h)
-{
-    cairo_t *cr;
-    cairo_status_t status;
-    cairo_matrix_t m;
-
-    cr = cairo_create(m_surface);
-
-    cairoOut->setCairo(cr);
-    cairoOut->setPrinting(is_printing(format));
-    cairoOut->setAntialias(CAIRO_ANTIALIAS_DEFAULT);
-
-    cairo_save(cr);
-
-    // todo
-    double crop_x = 0, crop_y = 0;
-    cairo_translate(cr, -crop_x, -crop_y);
-    if (is_printing(format))
-    {
-        double cropped_w, cropped_h;
-        getCropSize(page_w, page_h, &cropped_w, &cropped_h);
-        getFitToPageTransform(cropped_w, cropped_h, output_w, output_h, &m);
-        cairo_transform(cr, &m);
-        cairo_rectangle(cr, crop_x, crop_y, cropped_w, cropped_h);
-        cairo_clip(cr);
-    }
-    else
-    {
-        cairo_scale(cr, resolution / 72.0, resolution / 72.0);
-    }
-    doc->displayPageSlice(cairoOut,
-                          pg,
-                          72.0, 72.0,
-                          0,     /* rotate */
-                          true,  /* useMediaBox */
-                          false, /* Crop */
-                          is_printing(format),
-                          -1, -1, -1, -1);
-    cairo_restore(cr);
-    cairoOut->setCairo(nullptr);
-
-    // Blend onto white page, 不支持半透明的设置为白底。
-    if (!is_printing(format) && format != fmtPng && format != fmtTiff)
-    {
-        cairo_save(cr);
-        cairo_set_operator(cr, CAIRO_OPERATOR_DEST_OVER);
-        cairo_set_source_rgb(cr, 1, 1, 1);
-        cairo_paint(cr);
-        cairo_restore(cr);
-    }
-
-    status = cairo_status(cr);
-    if (status)
-        fprintf(stderr, "cairo error: %s\n", cairo_status_to_string(status));
-    cairo_destroy(cr);
-}
-
-static void writePageImage(ImageFormat format， GooString *filename)
-{
-    ImgWriter *writer = nullptr;
-    FILE *file;
-    int height, width, stride;
-    unsigned char *data;
-
-    if (format == fmtPng)
-    {
-        // if (transp)
-        writer = new PNGWriter(PNGWriter::RGBA);
-        // else if (gray)
-        //     writer = new PNGWriter(PNGWriter::GRAY);
-        // else if (mono)
-        //     writer = new PNGWriter(PNGWriter::MONOCHROME);
-        // else
-        //     writer = new PNGWriter(PNGWriter::RGB);
-    }
-    else if (format == fmtJpeg)
-    {
-
-        writer = new JpegWriter(JpegWriter::RGB);
-
-        static_cast<JpegWriter *>(writer)->setOptimize(jpegOptimize);
-        static_cast<JpegWriter *>(writer)->setProgressive(jpegProgressive);
-        if (jpegQuality >= 0)
-            static_cast<JpegWriter *>(writer)->setQuality(jpegQuality);
-    }
-
-    if (!writer)
-        return;
-
-    if (filename->cmp("fd://0") == 0)
-        file = stdout;
-    else
-        file = fopen(filename->c_str(), "wb");
-
-    if (!file)
-    {
-        fprintf(stderr, "Error opening output file %s\n", filename->c_str());
-        exit(2);
-    }
-
-    height = cairo_image_surface_get_height(surface);
-    width = cairo_image_surface_get_width(surface);
-    stride = cairo_image_surface_get_stride(surface);
-    cairo_surface_flush(surface);
-    data = cairo_image_surface_get_data(surface);
-
-    if (!writer->init(file, width, height, x_resolution, y_resolution))
-    {
-        fprintf(stderr, "Error writing %s\n", filename->c_str());
-        exit(2);
-    }
-    unsigned char *row = (unsigned char *)gmallocn(width, 4);
-
-    for (int y = 0; y < height; y++)
-    {
-        uint32_t *pixel = reinterpret_cast<uint32_t *>((data + y * stride));
-        unsigned char *rowp = row;
-        int bit = 7;
-        for (int x = 0; x < width; x++, pixel++)
-        {
-            if (transp)
-            {
-                if (tiff)
-                {
-                    // RGBA premultipled format
-                    *rowp++ = (*pixel & 0xff0000) >> 16;
-                    *rowp++ = (*pixel & 0x00ff00) >> 8;
-                    *rowp++ = (*pixel & 0x0000ff) >> 0;
-                    *rowp++ = (*pixel & 0xff000000) >> 24;
-                }
-                else
-                {
-                    // unpremultiply into RGBA format
-                    uint8_t a;
-                    a = (*pixel & 0xff000000) >> 24;
-                    if (a == 0)
-                    {
-                        *rowp++ = 0;
-                        *rowp++ = 0;
-                        *rowp++ = 0;
-                    }
-                    else
-                    {
-                        *rowp++ = (((*pixel & 0xff0000) >> 16) * 255 + a / 2) / a;
-                        *rowp++ = (((*pixel & 0x00ff00) >> 8) * 255 + a / 2) / a;
-                        *rowp++ = (((*pixel & 0x0000ff) >> 0) * 255 + a / 2) / a;
-                    }
-                    *rowp++ = a;
-                }
-            }
-            else if (gray || mono)
-            {
-                // convert to gray
-                // The PDF Reference specifies the DeviceRGB to DeviceGray conversion as
-                // gray = 0.3*red + 0.59*green + 0.11*blue
-                const int r = (*pixel & 0x00ff0000) >> 16;
-                const int g = (*pixel & 0x0000ff00) >> 8;
-                const int b = (*pixel & 0x000000ff) >> 0;
-                // an arbitrary integer approximation of .3*r + .59*g + .11*b
-                const int grayValue = (r * 19661 + g * 38666 + b * 7209 + 32829) >> 16;
-                if (mono)
-                {
-                    if (bit == 7)
-                        *rowp = 0;
-                    if (grayValue > 127)
-                        *rowp |= (1 << bit);
-                    bit--;
-                    if (bit < 0)
-                    {
-                        bit = 7;
-                        rowp++;
-                    }
-                }
-                else
-                {
-                    *rowp++ = grayValue;
-                }
-            }
-            else
-            {
-                // copy into RGB format
-                *rowp++ = (*pixel & 0x00ff0000) >> 16;
-                *rowp++ = (*pixel & 0x0000ff00) >> 8;
-                *rowp++ = (*pixel & 0x000000ff) >> 0;
-            }
-        }
-        writer->writeRow(&row);
-    }
-    gfree(row);
-    writer->close();
-    delete writer;
-    if (file == stdout)
-        fflush(file);
-    else
-        fclose(file);
-}
-
-void ObjectDumper::endPage(ImageFormat format, GooString *imageFileName)
-{
-    cairo_status_t status;
-
-    if (is_printing(format))
-    {
-        cairo_surface_show_page(m_surface);
-    }
-    else
-    {
-        writePageImage(format, imageFileName);
-        cairo_surface_finish(m_surface);
-        status = cairo_surface_status(m_surface);
-        if (status)
-            fprintf(stderr, "cairo error: %s\n", cairo_status_to_string(status));
-        cairo_surface_destroy(m_surface);
-    }
-}
-
-void ObjectDumper::endDocument(ImageFormat format)
-{
-    cairo_status_t status;
-
-    if (is_printing(format))
-    {
-        cairo_surface_finish(m_surface);
-        status = cairo_surface_status(m_surface);
-        if (status)
-            fprintf(stderr, "cairo error: %s\n", cairo_status_to_string(status));
-        cairo_surface_destroy(m_surface);
-
-        // if (output_file)
-        //     fclose(output_file);
-    }
-}
-
-void ObjectDumper::cropImage(unsigned int page, int resolution, double xMin, double yMin, double xMax, double yMax, ImageFormat format)
+CGraphSvg ObjectDumper::dumpGraph(unsigned int page)
 {
 
     double x_resolution = 150.0, y_resolution = 150.0;
     double resolution = 150.0;
-    bool printing = false;
+    bool printing = true;
     double pg_w = 0, pg_h = 0;
 
-    if (format == fmtPng || format == fmtJpeg || format == fmtTiff)
-    {
-        printing = false;
-    }
-    else
-    {
-        printing = true;
-    }
+    ImageFormat format = fmtSvg;
 
     m_cairoOut->startDoc(m_doc);
 
@@ -501,7 +235,7 @@ void ObjectDumper::cropImage(unsigned int page, int resolution, double xMin, dou
     pg_w = m_doc->getPageMediaWidth(page);
     pg_h = m_doc->getPageMediaHeight(page);
 
-    if (printing && m_paperWidth < 0 && m_paperHeight < 0)
+    if (m_paperWidth < 0 && m_paperHeight < 0)
     {
         m_paperWidth = (int)ceil(pg_w);
         m_paperHeight = (int)ceil(pg_h);
@@ -523,25 +257,77 @@ void ObjectDumper::cropImage(unsigned int page, int resolution, double xMin, dou
     double output_w, output_h;
 
     // 对于不可缩放格式,使用原始大小.
-    if (printing)
-    {
-        output_w = pg_w;
-        output_w = pg_h;
-    }
-    else
-    {
-        // getCropSize(pg_w * (x_resolution / 72.0),
-        //             pg_h * (y_resolution / 72.0),
-        //             &output_w, &output_h);
-        output_w = (int)ceil(pg_w * (x_resolution / 72.0));
-        output_h = (int)ceil(pg_h * (y_resolution / 72.0));
-    }
+    output_w = pg_w;
+    output_h = pg_h;
 
-    // if (page == firstPage)
-    beginDocument(format, pg_w, pg_h);
-    beginPage(format, resolution, &output_w, &output_h);
-    renderPage(format, resolution, m_doc, m_cairoOut, page, pg_w, pg_h, output_w, output_h);
-    endPage('test');
+    // beginPage(format, resolution, &output_w, &output_h);
 
-    endDocument();
+    FILE *output_file = tmpfile();
+
+    cairo_surface_t *surface = cairo_svg_surface_create_for_stream(writeStream, output_file, output_w, output_h);
+    cairo_svg_surface_restrict_to_version(surface, CAIRO_SVG_VERSION_1_2);
+    cairo_surface_set_fallback_resolution(surface, resolution, resolution);
+
+    // renderPage(format, resolution, m_doc, m_cairoOut, page, pg_w, pg_h, output_w, output_h);
+    cairo_t *cr;
+    cairo_status_t status;
+    cairo_matrix_t m;
+
+    cr = cairo_create(surface);
+
+    m_cairoOut->setCairo(cr);
+    m_cairoOut->setPrinting(true);
+    m_cairoOut->setAntialias(CAIRO_ANTIALIAS_DEFAULT);
+
+    cairo_save(cr);
+
+    cairo_translate(cr, 0, 0);
+
+    // double cropped_w, cropped_h;
+    // getCropSize(page_w, page_h, &cropped_w, &cropped_h);
+    // getFitToPageTransform(cropped_w, cropped_h, output_w, output_h, &m);
+    cairo_matrix_init_identity(&m);
+    cairo_matrix_scale(&m, 1.0, 1.0);
+    cairo_transform(cr, &m);
+    std::cout << "output_w/h:" << output_w << ", " << output_h << std::endl;
+    cairo_rectangle(cr, 0, 0, output_w, output_h);
+    cairo_clip(cr);
+
+    m_doc->displayPageSlice(m_cairoOut,
+                            page,
+                            72.0, 72.0,
+                            0,     /* rotate */
+                            true,  /* useMediaBox */
+                            false, /* Crop */
+                            true,
+                            -1, -1, -1, -1);
+    cairo_restore(cr);
+    m_cairoOut->setCairo(nullptr);
+
+    status = cairo_status(cr);
+    if (status)
+        fprintf(stderr, "cairo error: %s\n", cairo_status_to_string(status));
+    cairo_destroy(cr);
+
+    cairo_surface_show_page(surface);
+
+    cairo_surface_finish(surface);
+    status = cairo_surface_status(surface);
+    if (status)
+        fprintf(stderr, "cairo error: %s\n", cairo_status_to_string(status));
+    cairo_surface_destroy(surface);
+
+    CGraphSvg graph;
+    graph.size = ftell(output_file);
+    if (graph.size <= 0)
+    {
+        graph.content = nullptr;
+        return graph;
+    }
+    graph.content = new char[graph.size + 1];
+    rewind(output_file);
+    fread(graph.content, graph.size, 1, output_file);
+    graph.content[graph.size] = '\0';
+    fclose(output_file);
+    return graph;
 }

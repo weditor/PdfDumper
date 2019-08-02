@@ -2,6 +2,7 @@
 #ifndef __OBJECT_DUMPER_H__
 #define __OBJECT_DUMPER_H__
 #include <string>
+#include "CDumpApi.h"
 
 class GooString;
 class PDFDoc;
@@ -10,8 +11,8 @@ class UnicodeMap;
 class TextLine;
 class CairoOutputDev;
 
-class CPageInfo;
-class CTextLine;
+// class CPageInfo;
+// class CTextLine;
 
 enum ImageFormat
 {
@@ -31,19 +32,10 @@ public:
     unsigned int getNumPages();
     CPageInfo *parse(int page);
 
-    void cropImage(unsigned int page, int resolution, double xMin, double yMin, double xMax, double yMax, ImageFormat format);
-
 private:
     void dumpText(int page, int resolution, CPageInfo &page_info);
     void dumpLineText(TextLine *line, CTextLine &cLine);
-
-    void beginDocument(ImageFormat format, double w, double h);
-    void beginPage(ImageFormat format, double resolution, double *w, double *h);
-    void renderPage(ImageFormat format, double resolution, PDFDoc *doc, CairoOutputDev *cairoOut, int pg,
-                    double page_w, double page_h,
-                    double output_w, double output_h);
-    void endPage(ImageFormat format, GooString *imageFileName);
-    void endDocument(ImageFormat format);
+    CGraphSvg dumpGraph(unsigned int page);
 
 private:
     const std::string m_fileName;
@@ -55,7 +47,7 @@ private:
     UnicodeMap *m_uMap;
 
     CairoOutputDev *m_cairoOut;
-    cairo_surface_t *m_surface;
+    // cairo_surface_t *m_surface;
 
     // 临时存储, cairo 需要用
     int m_paperWidth = -1;

@@ -67,12 +67,19 @@ extern "C"
         CTextBlock *blocks;
     };
 
+    struct CGraphSvg
+    {
+        long int size;
+        char *content;
+    };
+
     struct CPageInfo
     {
         double width;
         double height;
         unsigned int flowLen;
         CTextFlow *flows;
+        CGraphSvg graph;
     };
 
     void init_global_params(const char *poppler_data = nullptr);
