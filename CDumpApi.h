@@ -82,17 +82,17 @@ extern "C"
         CGraphSvg graph;
     };
 
-    void init_global_params(const char *poppler_data = nullptr);
+    extern void init_global_params(const char *poppler_data = nullptr);
 
-    void destroy_global_params();
+    extern void destroy_global_params();
 
-    void free_page_info(CPageInfo *page_info);
+    extern void free_page_info(CPageInfo *page_info);
 
-    void *create_arser(const char *fileName, const char *owner_pw = nullptr, const char *user_pw = nullptr);
-    void destroy_parser(void *parser);
-    bool parser_is_ok(void *parser);
-    unsigned int parser_get_num_pages(void *parser);
-    CPageInfo *parser_parse(void *parser, int page);
+    extern void *create_arser(const char *fileName, const char *owner_pw = nullptr, const char *user_pw = nullptr);
+    extern void destroy_parser(void *parser);
+    extern bool parser_is_ok(void *parser);
+    extern unsigned int parser_get_num_pages(void *parser);
+    extern CPageInfo *parser_parse(void *parser, int page);
 #ifdef __cplusplus
 }
 #endif

@@ -94,7 +94,7 @@ void ObjectDumper::dumpText(int page, int resolution, CPageInfo &page_info)
     page_info.flows = new CTextFlow[textFlows.size()];
     for (size_t flowIdx = 0; flowIdx < textFlows.size(); flowIdx++)
     {
-        auto cFlow = page_info.flows[flowIdx];
+        CTextFlow &cFlow = page_info.flows[flowIdx];
         auto flow = textFlows[flowIdx];
 
         std::vector<TextBlock *> textBlocks;
@@ -106,7 +106,7 @@ void ObjectDumper::dumpText(int page, int resolution, CPageInfo &page_info)
         cFlow.blocks = new CTextBlock[textBlocks.size()];
         for (size_t blkIdx = 0; blkIdx < textBlocks.size(); blkIdx++)
         {
-            auto cBlock = cFlow.blocks[blkIdx];
+            CTextBlock &cBlock = cFlow.blocks[blkIdx];
             auto blk = textBlocks[blkIdx];
 
             blk->getBBox(&cBlock.xMin, &cBlock.yMin, &cBlock.xMax, &cBlock.yMax);
@@ -120,7 +120,7 @@ void ObjectDumper::dumpText(int page, int resolution, CPageInfo &page_info)
             cBlock.lines = new CTextLine[textLines.size()];
             for (size_t lineIdx = 0; lineIdx < textLines.size(); lineIdx++)
             {
-                auto cLine = cBlock.lines[lineIdx];
+                CTextLine &cLine = cBlock.lines[lineIdx];
                 auto line = textLines[lineIdx];
                 this->dumpLineText(line, cLine);
             }
@@ -143,7 +143,7 @@ void ObjectDumper::dumpLineText(TextLine *line, CTextLine &cLine)
 
     for (size_t wordIdx = 0; wordIdx < textWords.size(); wordIdx++)
     {
-        auto cWord = cLine.words[wordIdx];
+        CTextWord &cWord = cLine.words[wordIdx];
         auto word = textWords[wordIdx];
         word->getBBox(&cWord.xMin, &cWord.yMin, &cWord.xMax, &cWord.yMax);
         word->getColor(&cWord.color.r, &cWord.color.g, &cWord.color.b);
@@ -165,36 +165,15 @@ void ObjectDumper::dumpLineText(TextLine *line, CTextLine &cLine)
 
         for (size_t charIdx = 0; charIdx < word->getLength(); charIdx++)
         {
-            CTextChar textChar = cWord.chars[charIdx];
+            CTextChar &textChar = cWord.chars[charIdx];
             const Unicode *u = word->getChar(charIdx);
 
             textChar.len = m_uMap->mapUnicode(*u, buf, sizeof(buf));
             textChar.bytes = new char[textChar.len];
             memcpy(textChar.bytes, buf, textChar.len);
-            // std::cout << std::string(textChar.bytes, textChar.len);
-            // std::cout << buf << std::endl;
             word->getCharBBox(charIdx, &textChar.xMax, &textChar.yMin, &textChar.xMax, &textChar.yMax);
         }
     }
-}
-
-static void getCropSize(double page_w, double page_h, double *width, double *height)
-{
-    // int w = crop_w;
-    // int h = crop_h;
-
-    // if (w == 0)
-    //     w = (int)ceil(page_w);
-
-    // if (h == 0)
-    //     h = (int)ceil(page_h);
-
-    // *width = (crop_x + w > page_w ? (int)ceil(page_w - crop_x) : w);
-    // *height = (crop_y + h > page_h ? (int)ceil(page_h - crop_y) : h);
-    int w = (int)ceil(page_w);
-    int h = (int)ceil(page_h);
-    *width = (w > page_w ? (int)ceil(page_w) : w);
-    *height = (h > page_h ? (int)ceil(page_h) : h);
 }
 
 static inline bool is_printing(ImageFormat format)
@@ -283,9 +262,6 @@ CGraphSvg ObjectDumper::dumpGraph(unsigned int page)
 
     cairo_translate(cr, 0, 0);
 
-    // double cropped_w, cropped_h;
-    // getCropSize(page_w, page_h, &cropped_w, &cropped_h);
-    // getFitToPageTransform(cropped_w, cropped_h, output_w, output_h, &m);
     cairo_matrix_init_identity(&m);
     cairo_matrix_scale(&m, 1.0, 1.0);
     cairo_transform(cr, &m);
