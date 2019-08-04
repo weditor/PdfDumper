@@ -1,6 +1,7 @@
 
 #include "ObjectDumper.h"
 #include "CDumpApi.h"
+#include "ImageDumper.h"
 #include "poppler/Page.h"
 #include "poppler/PDFDoc.h"
 #include "poppler/PDFDocFactory.h"
@@ -17,6 +18,8 @@
 
 #include <string>
 #include <vector>
+#include <map>
+#include <utility>
 #include <math.h>
 #include <iostream>
 
@@ -51,6 +54,10 @@ ObjectDumper::~ObjectDumper()
     delete m_doc;
     delete m_userPW;
     delete m_ownerPW;
+    for (auto entry : m_imageDumpper)
+    {
+        delete entry.second;
+    }
 }
 
 bool ObjectDumper::isOk() const
@@ -61,6 +68,21 @@ bool ObjectDumper::isOk() const
 unsigned int ObjectDumper::getNumPages()
 {
     return m_doc->getNumPages();
+}
+
+ImageDumpper *ObjectDumper::getImageDumpper(ImageFormat format)
+{
+    auto dumper = m_imageDumpper.find(format);
+    if (dumper == m_imageDumpper.end())
+    {
+        ImageDumpper *imgDumper = new ImageDumpper(m_doc, format);
+        m_imageDumpper[format] = imgDumper;
+        return imgDumper;
+    }
+    else
+    {
+        return dumper->second;
+    }
 }
 
 CPageInfo *ObjectDumper::parse(int page)

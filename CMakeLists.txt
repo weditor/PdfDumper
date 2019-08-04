@@ -10,7 +10,13 @@ set(CAIRO_SOURCES
     ${POPPLER_SOURCE_DIR}/poppler/CairoRescaleBox.cc
   )
 
-add_executable(main main.cpp CDumpApi.cpp ObjectDumper.cpp ${CAIRO_SOURCES} )
+add_executable(main 
+  main.cpp 
+  CDumpApi.cpp 
+  ObjectDumper.cpp 
+  ImageDumper.cpp
+  ${CAIRO_SOURCES} 
+)
 # target_include_directories(main PRIVATE /usr/local/include/poppler)
 target_include_directories(main PRIVATE 
     ${POPPLER_SOURCE_DIR}

@@ -27,6 +27,13 @@ int main(int args, char **argv)
     fwrite(info->graph.content, 1, info->graph.size, output);
     fclose(output);
 
+    // auto imgDumper = dumper->getImageDumpper(fmtPng);
+    // imgDumper->cropImage("test.png", 1, 150, 0, 0, 0, 0);
+    // imgDumper->cropImage("test2.png", 1, 150, 600, 0, 900, 1000);
+    auto imgDumper = dumper->getImageDumpper(fmtJpeg);
+    imgDumper->cropImage("test.jpeg", 1, 150, 0, 0, 0, 0);
+    imgDumper->cropImage("test2.jpeg", 1, 150, 600, 0, 900, 1000);
+
     free_page_info(info);
     delete dumper;
 

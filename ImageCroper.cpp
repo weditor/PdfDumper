@@ -102,6 +102,26 @@ void ObjectDumper::beginPage(ImageFormat format, double resolution, double *w, d
     }
 }
 
+static void getCropSize(double page_w, double page_h, double *width, double *height)
+{
+    int w = crop_w;
+    int h = crop_h;
+
+    if (w == 0)
+        w = (int)ceil(page_w);
+
+    if (h == 0)
+        h = (int)ceil(page_h);
+
+    *width = (crop_x + w > page_w ? (int)ceil(page_w - crop_x) : w);
+    *height = (crop_y + h > page_h ? (int)ceil(page_h - crop_y) : h);
+
+    // int w = (int)ceil(page_w);
+    // int h = (int)ceil(page_h);
+    // *width = (w > page_w ? (int)ceil(page_w) : w);
+    // *height = (h > page_h ? (int)ceil(page_h) : h);
+}
+
 void ObjectDumper::renderPage(ImageFormat format, double resolution, PDFDoc *doc, CairoOutputDev *cairoOut, int pg,
                               double page_w, double page_h,
                               double output_w, double output_h)
@@ -179,6 +199,20 @@ static void writePageImage(ImageFormat format， GooString *filename)
         // else
         //     writer = new PNGWriter(PNGWriter::RGB);
     }
+    //     else if (tiff)
+    //     {
+    // #ifdef ENABLE_LIBTIFF
+    //         if (transp)
+    //             writer = new TiffWriter(TiffWriter::RGBA_PREMULTIPLIED);
+    //         else if (gray)
+    //             writer = new TiffWriter(TiffWriter::GRAY);
+    //         else if (mono)
+    //             writer = new TiffWriter(TiffWriter::MONOCHROME);
+    //         else
+    //             writer = new TiffWriter(TiffWriter::RGB);
+    //         static_cast<TiffWriter *>(writer)->setCompressionString(tiffCompressionStr);
+    // #endif
+    //     }
     else if (format == fmtJpeg)
     {
 
