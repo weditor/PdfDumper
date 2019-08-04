@@ -5,8 +5,6 @@
 class PDFDoc;
 class CairoOutputDev;
 
-// struct cairo_surface_t;
-
 enum ImageFormat
 {
     fmtJpeg = 1,

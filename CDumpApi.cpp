@@ -1,5 +1,7 @@
 #include "CDumpApi.h"
 #include "poppler/GlobalParams.h"
+#include "ImageDumper.h"
+#include "ObjectDumper.h"
 
 void init_global_params(const char *poppler_data)
 {
@@ -62,4 +64,34 @@ void free_page_info(CPageInfo *page_info)
         delete[] page_info->flows;
     }
     delete page_info;
+}
+
+void *create_arser(const char *fileName, const char *owner_pw, const char *user_pw)
+{
+    return new ObjectDumper(fileName, owner_pw, user_pw);
+}
+void destroy_parser(void *parser)
+{
+    delete (ObjectDumper *)parser;
+}
+bool parser_is_ok(void *parser)
+{
+    return ((ObjectDumper *)parser)->isOk();
+}
+unsigned int parser_get_num_pages(void *parser)
+{
+    return ((ObjectDumper *)parser)->getNumPages();
+}
+CPageInfo *parser_parse(void *parser, int page)
+{
+    return ((ObjectDumper *)parser)->parse(page);
+}
+
+void *getImageDumper(void *parser, int format)
+{
+    return ((ObjectDumper *)parser)->getImageDumpper((ImageFormat)format);
+}
+void *cropPage(void *dumper, const char *filename, unsigned int page, double resolution, int left, int top, int right, int bottom)
+{
+    ((ImageDumpper *)dumper)->cropImage(filename, page, resolution, left, top, right, bottom);
 }

@@ -5,6 +5,7 @@
 extern "C"
 {
 #endif
+
     struct CColor
     {
         double r;
@@ -83,7 +84,6 @@ extern "C"
     };
 
     extern void init_global_params(const char *poppler_data = nullptr);
-
     extern void destroy_global_params();
 
     extern void free_page_info(CPageInfo *page_info);
@@ -93,6 +93,10 @@ extern "C"
     extern bool parser_is_ok(void *parser);
     extern unsigned int parser_get_num_pages(void *parser);
     extern CPageInfo *parser_parse(void *parser, int page);
+
+    extern void *getImageDumper(void *parser, int format);
+    extern void *cropPage(const char *filename, unsigned int page, double resolution, int left, int top, int right, int bottom);
+
 #ifdef __cplusplus
 }
 #endif
