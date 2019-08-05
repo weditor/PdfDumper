@@ -66,7 +66,7 @@ void free_page_info(CPageInfo *page_info)
     delete page_info;
 }
 
-void *create_arser(const char *fileName, const char *owner_pw, const char *user_pw)
+void *create_parser(const char *fileName, const char *owner_pw, const char *user_pw)
 {
     return new ObjectDumper(fileName, owner_pw, user_pw);
 }
@@ -87,11 +87,11 @@ CPageInfo *parser_parse(void *parser, int page)
     return ((ObjectDumper *)parser)->parse(page);
 }
 
-void *getImageDumper(void *parser, int format)
+void *get_image_dumper(void *parser, int format)
 {
     return ((ObjectDumper *)parser)->getImageDumpper((ImageFormat)format);
 }
-void *cropPage(void *dumper, const char *filename, unsigned int page, double resolution, int left, int top, int right, int bottom)
+void crop_page(void *dumper, const char *filename, unsigned int page, double resolution, int left, int top, int right, int bottom)
 {
     ((ImageDumpper *)dumper)->cropImage(filename, page, resolution, left, top, right, bottom);
 }

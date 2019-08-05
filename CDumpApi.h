@@ -70,7 +70,7 @@ extern "C"
 
     struct CGraphSvg
     {
-        long int size;
+        long size;
         char *content;
     };
 
@@ -88,14 +88,14 @@ extern "C"
 
     extern void free_page_info(CPageInfo *page_info);
 
-    extern void *create_arser(const char *fileName, const char *owner_pw = nullptr, const char *user_pw = nullptr);
+    extern void *create_parser(const char *fileName, const char *owner_pw = nullptr, const char *user_pw = nullptr);
     extern void destroy_parser(void *parser);
     extern bool parser_is_ok(void *parser);
     extern unsigned int parser_get_num_pages(void *parser);
     extern CPageInfo *parser_parse(void *parser, int page);
 
-    extern void *getImageDumper(void *parser, int format);
-    extern void *cropPage(const char *filename, unsigned int page, double resolution, int left, int top, int right, int bottom);
+    extern void *get_image_dumper(void *parser, int format);
+    extern void crop_page(const char *filename, unsigned int page, double resolution, int left, int top, int right, int bottom);
 
 #ifdef __cplusplus
 }
