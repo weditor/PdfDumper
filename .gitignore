@@ -10,3 +10,6 @@
 .svn/
 .git/
 /third/poppler*/
+/third/
+/packages/
+/poppler*/
